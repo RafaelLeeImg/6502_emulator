@@ -63,7 +63,7 @@ struct CPU {
   Byte ReadByte(Dword *Cycles, Byte Address, Mem &memory) {
     Byte Data = memory[Address];
     // Byte Data = 0; // debugging
-    printf("Data = %d\n", Data);
+    // printf("Data = %d\n", Data);
     Cycles--;
     return Data;
   }
@@ -73,6 +73,12 @@ struct CPU {
       INS_LDA_ZP = 0xA5,                   // LDA zero page, LDA-Z PAGE
       INS_LDA_ZPX = 0xB5;                  // LDA zero page, LDA-Z PAGE
 
+  // not functional
+  void LDASetStatus() {
+    Z = (A == 0);
+    N = (A & (1 << 7)) > 0;
+  }
+
   void Execute(Dword Cycles, Mem &memory) {
     while (Cycles > 0) {
       Byte Instruction = FetchByte(Cycles, memory);
@@ -80,17 +86,26 @@ struct CPU {
       case INS_LDA_IM: {
         Byte value = FetchByte(Cycles, memory);
         A = value;
-        Z = (A == 0);
-        N = (A & (1 << 7)) > 0;
+        LDASetStatus();
         break;
       }
       case INS_LDA_ZP: {
         Byte ZeroPageAddress = FetchByte(Cycles, memory);
         A = ReadByte(&Cycles, ZeroPageAddress, memory);
-        Z = (A == 0);
-        N = (A & (1 << 7)) > 0;
+        printf("INS_LDA_ZP, A = 0x%X\n", A);
+        LDASetStatus();
         break;
       }
+      // TODO:deal with overflow
+      case INS_LDA_ZPX: {
+        Byte ZeroPageAddress = FetchByte(Cycles, memory);
+        ZeroPageAddress += X;
+        A = ReadByte(&Cycles, ZeroPageAddress, memory);
+        printf("INS_LDA_ZPX, A = 0x%X\n", A);
+        LDASetStatus();
+        break;
+      }
+
       default: {
         printf("Instruction not handled\n");
         break;
@@ -104,11 +119,11 @@ int main() {
   Mem mem;
   CPU cpu;
   cpu.Reset(mem);
-  mem[0xFFFc] = CPU::INS_LDA_ZP; // debugging, reset
-  // mem[0xFFFc] = cpu.INS_LDA_IM; // debugging, reset
+  mem[0xFFFC] = CPU::INS_LDA_ZP; // debugging, reset
+  // mem[0xFFFC] = cpu.INS_LDA_IM; // debugging, reset
   mem[0xFFFD] = 0x42; // debugging, reset
   mem[0x0042] = 42;   // debugging, zero page
-  cpu.Execute(2, mem);
+  cpu.Execute(3, mem);
 }
 
 // https://www.bilibili.com/video/BV1Ro4y1272a
